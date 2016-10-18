@@ -11,163 +11,173 @@
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. If data produced 
 // with this program or a derivative of this program is used for 
-// publications the original authors should be acknowledged appropriately. 
-
+// publications the original authors should be acknowledged appropriately.
 // See the GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // =======================================================
-
 // BioImaging Center, University of Konstanz <bioimaging@uni-konstanz.de>
-//   Martin St�ckl <martin.stoeckl@uni-konstanz.de>
-
+// Martin Stoeckl <martin.stoeckl@uni-konstanz.de>
 // =======================================================
 
-	
-	var VOID = 0;
-	var row = 0;	
-	var ROInum = 0;
-	var chanum = 0;
-	var endimage = 0;
-	var rtime = 0;
-	var widthline =0;
-	var heightline = 0;
- 	var filename = "";
-	var path ="";
-	offset = 14;
-	
-macro "Line analysis staining" {
-	
-	method = newArray("line ROI", "whole nucleus", "single slide");
+var VOID = 0;
+var row = 0;	
+var ROInum = 0;
+var chanum = 0;
+var endimage = 0;
+var rtime = 0;
+var widthline = 0;
+var heightline = 0;
+var filename = "";
+var path ="";
+offset = 14;
 
+macro "Line analysis staining" {	
+	// Reset everything
 	run("Close All");	
 	run("Clear Results");
 	roiManager("Reset");
 	
+	// Create and show dialog
 	Dialog.create("Method selection");
-		Dialog.addCheckbox("Run in batch mode?", true);
-		Dialog.addChoice("Select bgd selection method:", method, method[1]);
-		Dialog.addCheckbox("Multichannel measurement?", false);
-		Dialog.show();
+	Dialog.addCheckbox("Batch mode", true);
+	methods = newArray("line ROI", "whole nucleus", "single slide");
+	Dialog.addChoice("Background selection method:", methods, methods[1]);
+	Dialog.addCheckbox("Multichannel measurement", false);
+	Dialog.show();
+
+	// Get user input
 	batch = Dialog.getCheckbox(); 
-	method[0] = Dialog.getChoice();
+	method = Dialog.getChoice();
 	multi_ch = Dialog.getCheckbox(); 
 
-	if (multi_ch && method[0] != "single slide")
-	
-		exit("At the moment the macro supports multichannels only for single slide measurements!");
-
-		
+	if (multi_ch && method != "single slide") {
+		exit("Multichannels only supported for single slide measurements");
+	}
+
 	file = File.openDialog("Select first image");
 	if (endsWith(file, ".lsm")) {
-		run("Show LSMToolbox","ext");
+		// Use LSM Toolbox for opening LSM instead of Bio-Formats
+		run("Show LSMToolbox", "ext");
 		Ext.lsmOpen(file);
-	}
-	else
-	 {
+	} else {
+		// Use Bio-Formats for other formats
 		run("Bio-Formats (Windowless)", "open=["+file+"]");
-		if (method[0] != "single slide") 
-			exit("At the moment the macro supports only .lsm/nfor time series measurements!");
+		if (method != "single slide") {
+			exit("Only .lsm/nfor for time series measurements supported");
+		}
 	}	
-	files=getTitle();
+	files = getTitle();
 //	prefix=substring(files, 0, lengthOf(files)-offset);
 	path = getDirectory("image") + File.separator;
-	
-	if (batch) {
-		Dialog.create("Select the prefix");
-			Dialog.addString("Prefix used for image selection:", files, lengthOf(files));
-		Dialog.show();
-			prefix = Dialog.getString();
 
+	if (batch) {
+		// Dialog for prefix selection
+		Dialog.create("Select the prefix");
+		Dialog.addString("Prefix used for image selection:", files, lengthOf(files));
+		Dialog.show();
+		prefix = Dialog.getString();
+
+		// Filter file list according to prefix
 		list = getFileList(path);
 		files = newArray();
-		for (i=0; i<list.length; i++) 
+		for (i=0; i<list.length; ++i) {
 //			if (startsWith(list[i], prefix) && endsWith(list[i], ".lsm")) 
-			if (startsWith(list[i], prefix)) 
-				files = Array.concat(files, list [i]);
+			if (startsWith(list[i], prefix)) { 
+				files = Array.concat(files, list[i]);
+			}
+		}
 		Array.sort(files);
 
-		Dialog.create("Image files detected!");
-			Dialog.addMessage(""+files.length+"  files will be analyzed!");
-			Dialog.show();
+		showMessage("Image files detected!", ""+files.length+" files will be analyzed!");
 	}
 	
-	
+	// Get user input on multi-channel measurements
 	if (multi_ch) {
-		
 		excit = newArray("405 nm", "458 nm", "488 nm", "514 nm", "543 nm", "633 nm", "TL", "Select");
+
+		// Get number of channels
 		getDimensions(VOID, VOID, channels, VOID, VOID);
-		choice = newArray(channels);	
 	
+		// Create dialog
 		Dialog.create("Wavelength selection");
-			for (i=0; i<channels;i++) 
-				Dialog.addChoice("Excitation wavelength of Channel "+ i+1 +":", excit, "Select");
-				Dialog.addChoice("Do thresholding in Channel:", excit, "633 nm");
-		Dialog.show;
-			for (i=0; i<channels;i++) 	
-				choice[i] = Dialog.getChoice();
-			chan_thresh = Dialog.getChoice();
+		for (i=0; i<channels; ++i) { 
+			Dialog.addChoice("Excitation wavelength of Channel "+ i+1 +":", excit, "Select");
+		}
+		Dialog.addChoice("Do thresholding in Channel:", excit, "633 nm");
+		Dialog.show();
+
+		// Get input from dialog
+		excitationWavelengths = newArray(channels);
+		for (i=0; i<channels; ++i) {
+			excitationWavelengths[i] = Dialog.getChoice();
+		}
+		chan_thresh = Dialog.getChoice(); // String representation
 
 		if (chan_thresh == "Select")
-			chan_thresh = 1;
+			chan_thresh = 1; // Default channel
 		else {
+			// Convert from wavelength to channel number
 			i = 0;
-			while (chan_thresh != choice[i] && i < choice.length)
+			while (chan_thresh != excitationWavelengths[i] && i < excitationWavelengths.length) {
 				i++;
-			chan_thresh = i+1;
-		}		
+			}
+			chan_thresh = i+1; // index shift
+		}
+
+		// TODO What does this do?
 		chan_sel = Channel_Select(choice);
-		chan_nums =newArray();
-		for (i=1; i<=choice.length;i++) 
-			if (choice[i-1] != "Select") 
+		chan_nums =n ewArray();
+		for (i=1; i<=choice.length; ++i) { 
+			if (choice[i-1] != "Select") {
 				chan_nums = Array.concat(chan_nums, i);
-		
-		for (i=0; i<choice.length;i++) 
-			if (choice[i] == "Select")
+			}
+		}
+
+		// TODO What does this do?
+		for (i=0; i<choice.length; ++i) { 
+			if (choice[i] == "Select") {
 				choice = Array_Remove(choice, i);
-		
+			}
+		}
 	}
 	
+	// Read line for evaluation from file
 	if (File.exists(path + "line.txt")) {
-		linebox = File.openAsString(path+"line.txt");
-		linebox = split(linebox, ",");
-		for (i=0; i<linebox.length; i++) 
-			linebox[i] = parseInt(linebox[i]);
-		widthline = linebox[0];
-		heightline = linebox[1];
-		chanum = linebox[2];
-		xsel = linebox[3];
-		ysel = linebox[4];
-		makeRectangle(xsel, ysel, widthline, heightline);
-		Stack.setChannel(chanum);
+		// Load selection from file
+		makeSelectionFromFile(path+"line.txt");
+
+		// Let the user validate the selection
 		waitForUser("Check line size and position! To change for the series delete line.txt");
-	}
-	else {
+	} else {
+		// Let the user select a rectangle
 		waitForUser("Select the channel to measure and mark line with box then press OK!");
-			getSelectionBounds(xsel, ysel, widthline, heightline);
-			Stack.getPosition(chanum, VOID, VOID);
-		File.saveString(widthline+","+heightline+","+chanum+","+xsel+","+ysel, path+"line.txt");
+
+		// Save selection to file
+		saveSelectionToFile(path+"line.txt");
 	}
 
-	
-	if (multi_ch)
- {
+	if (multi_ch) {
+		Stack.getPosition(chanum, VOID, VOID);
 		chanum_old = chanum;
-		for(i=0; i<chanum_old-1;i++) 
-			if(chan_sel[i] == 0)
+		for(i=0; i<chanum_old-1; ++i) {
+			if(!chan_sel[i]) {
 				chanum--;
+			}
+		}
 				
 		thres_old = chan_thresh;
-		for(i=0; i<thres_old-1;i++) 
-			if(chan_sel[i] == 0)
+		for (i=0; i<thres_old-1; ++i) {
+			if (!chan_sel[i]) {
 				chan_thresh--;
-
-	}
-	else
+			}
+		}
+	} else {
 		chan_sel = toString(chanum);
+	}
 			
-	if (method[0] != "single slide") {
+	if (method != "single slide") {
 		pb = 1;
 		irr = 1;
 		rtime = 60;
@@ -175,12 +185,11 @@ macro "Line analysis staining" {
 		getDimensions(VOID, VOID, VOID, VOID, frames);	
 		
 		do {
-			 
 			Dialog.create("Parameter setup");
-				Dialog.addNumber("Number of not irradiated images", pb);
-				Dialog.addNumber("Number of irradiation images", irr);
-				Dialog.addNumber("Recruitment time after irradiation [in "+Time+"]", rtime);	
-				Dialog.show();
+			Dialog.addNumber("Number of not irradiated images", pb);
+			Dialog.addNumber("Number of irradiation images", irr);
+			Dialog.addNumber("Recruitment time after irradiation [in "+Time+"]", rtime);	
+			Dialog.show();
 			pb = Dialog.getNumber();
 			irr = Dialog.getNumber();
 			solltime = Dialog.getNumber();
@@ -189,27 +198,29 @@ macro "Line analysis staining" {
 						
 			if (tstamp[frames-1] - solltime < tstamp[pb+irr-1]) {
 				rtime = tstamp[frames-1] - tstamp[pb+irr-1];
+				
 				Dialog.create("ERROR");
-					Dialog.addCheckbox("Time series is too short for selected recruitment time!\n Continue anyway?", false);
-					Dialog.addMessage("Approx. length of time series: "+rtime+" "+Time);
-					Dialog.show();
+				Dialog.addCheckbox("Time series is too short for selected recruitment time!\n Continue anyway?", false);
+				Dialog.addMessage("Approx. length of time series: "+rtime+" "+Time);
+				Dialog.show();
+				
 				control = Dialog.getCheckbox(); 
 				solltime = rtime;
-			}
-			else 		
+			} else { 		
 				control = 1;
-						
+			}			
 		} while (control == 0);
 	}
+	
+	// Create results directory
 	File.makeDirectory(path+"Results");
 	
-	
-	if (batch == 1) {
+	if (batch) {
 		run("Close All");
 		rtime = newArray(files.length);
 		endimage = newArray(files.length);
 
-		if (method[0] == "whole nucleus")
+		if (method == "whole nucleus") {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				Ext.lsmOpen(filename);
@@ -218,8 +229,9 @@ macro "Line analysis staining" {
 				rtime[i-1] = tstamp[endimage[i-1]-1] - tstamp[pb+irr-1];
 				ProcessNuc(files[i-1], endimage[i-1]);
 			}
+		}
 
-		if (method[0] == "line ROI")
+		if (method == "line ROI") {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				Ext.lsmOpen(filename);
@@ -228,49 +240,49 @@ macro "Line analysis staining" {
 				rtime[i-1] = tstamp[endimage[i-1]-1] - tstamp[pb+irr-1];
 				ProcessLine(files[i-1], endimage[i-1]);
 			}
+		}
 
-		if (method[0] == "single slide")
+		if (method == "single slide") {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				run("Bio-Formats (Windowless)", "open=["+filename+"]");
 				Stack.setChannel(chanum_old);
 				ProcessNuc_single(files[i-1], chan_sel, chanum, chan_thresh);
 			}
+		}
 
 		run("Clear Results");
-		if (method[0] != "single slide")
- 		{
-			for (i=files.length; i>0; i--)
+		if (method != "single slide") {
+			for (i=files.length; i>0; i--) {
 				Analyse(files[i-1], rtime[i-1], endimage[i-1]);
+			}
 			saveAs("Results", path+"Results"+ File.separator + prefix+"_Results.txt");
-		}
-		else
- 		{
+		} else {
 			for (j=0; j<choice.length; j++) {
 				ROInum = 0;
 				row = 0;
 				run("Clear Results");
-				for (i=files.length; i>0; i--)
- 
-					Analyse_single(files[i-1], j+1);
+				for (i=files.length; i>0; i--) {
+ 					Analyse_single(files[i-1], j+1);
+				}
+				
 				saveAs("Results", path+"Results"+ File.separator + prefix+"_"+choice[j]+"_Results.txt");
 			}
 		}
-	}
-	else {
-		if (method[0] != "single slide") {
+	} else {
+		if (method != "single slide") {
 			endimage = findTime(solltime, tstamp, irr);
 			rtime = tstamp[endimage-1] - tstamp[pb+irr-1];
 		
-			if (method[0] == "whole nucleus")
+			if (method == "whole nucleus") {
 				ProcessNuc(files);
-			else 
+			} else { 
 				ProcessLine(files);
+			}
 			run("Clear Results");
 			Analyse(files, rtime);
 			saveAs("Results", path+"Results"+ File.separator + files +"_Results.txt");
-		}
-		else {
+		} else {
 			ProcessNuc_single(files, chan_sel, chanum, chan_thresh);
 			for (j=0; j<chan_nums.length; j++) {
 				run("Clear Results");
@@ -279,19 +291,19 @@ macro "Line analysis staining" {
 				Analyse_single(files, j+1);
 				saveAs("Results", path+"Results"+ File.separator + files +"_"+choice[j]+"_Results.txt");
 			}
-		}
-			
+		}	
 	}
 
-	if (batch)
+	if (batch) {
 		roiManager("Save", path+"Results"+ File.separator + prefix+"_ROISet.zip");
-	else
+	} else {
 		roiManager("Save", path+"Results"+ File.separator + files+"_ROISet.zip");
-
+	}
 }
 
-
-	
+/*
+ * TODO Documentation
+ */
 function Tstamps(fullname) {
 	stamp = split(Ext.getTStamps(fullname), ",");
 	for (i=0; i<lengthOf(stamp); i++) 
@@ -299,6 +311,9 @@ function Tstamps(fullname) {
 	return stamp;
 }
 
+/*
+ * TODO Documentation
+ */
 function findTime(time, stamp, laserimg) {
 
 	tempstamp = newArray(stamp.length);
@@ -316,6 +331,9 @@ function findTime(time, stamp, laserimg) {
 		
 }
 
+/*
+ * TODO Documentation
+ */
 function ProcessNuc(name, end_image)  {
 	run("Enhance Contrast", "saturated=0.35");
 	waitForUser("Mark cell with box and press OK!");
@@ -375,6 +393,9 @@ function ProcessNuc(name, end_image)  {
 	close();
 }
 
+/*
+ * TODO Documentation
+ */
 function ProcessNuc_single(name, chan_selection, channel_number, thresh_number)  {
 	run("Enhance Contrast", "saturated=0.35");
 	waitForUser("Mark cell with box and press OK!");
@@ -445,8 +466,9 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 	close();
 }
 
-
-
+/*
+ * TODO Documentation
+ */
 function ProcessLine(name, end_image)  {
 	run("Enhance Contrast", "saturated=0.35");
 	waitForUser("Mark cell with box and press OK!");
@@ -469,7 +491,10 @@ function ProcessLine(name, end_image)  {
 	roiManager("Rename", "nuc_bgd_"+name);
 	Overlay.hide;
 }
-				
+
+/*
+ * TODO Documentation
+ */
 function Analyse(name, time, end_image) {
 	selectWindow(name+"_crop");
 	Stack.setFrame(end_image);
@@ -529,6 +554,9 @@ function Analyse(name, time, end_image) {
 		ROInum += 2;
 }
 
+/*
+ * TODO Documentation
+ */
 function Analyse_single(name, channel_number) {
 
 		selectWindow(name+"_crop");
@@ -581,6 +609,9 @@ function Channel_Select (sel) {
 
 */
 
+/*
+ * TODO Documentation
+ */
 function Array_Remove(a,pos) {
 	a1 = Array.slice(a, 0, pos);
 	a2 = Array.slice(a, pos+1);
@@ -588,16 +619,19 @@ function Array_Remove(a,pos) {
 	return a;
 }
 								
-
+/*
+ * Converts from a string array to a boolean area by checking the elements for equality to "Select"
+ */
 function Channel_Select(chan) {
-	sel = newArray();
-	for (i=0; i<chan.length; i++) {
-		if (chan[i] == "Select") 
-			sel = Array.concat(sel, 0);
-		else
-			sel = Array.concat(sel, 1);
+	channelSelected = newArray();
+	for (i=0; i<chan.length; ++i) {
+		if (chan[i] == "Select") {
+			channelSelected = Array.concat(channelSelected, false);
+		} else {
+			channelSelected = Array.concat(channelSelected, true);
+		}
 	}
-	return sel;
+	return channelSelected;
 }
 	
 function Slice_Remove(chan) {
@@ -608,3 +642,31 @@ function Slice_Remove(chan) {
 	}
 }
 
+/*
+ * Creates a selection from information stored in a file.
+ */
+function makeSelectionFromFile(file) {
+	selectionParameters = File.openAsString(file);
+	selectionParameters = split(selection, ",");
+	for (i=0; i<selectionParameters.length; ++i) { 
+		selectionParameters[i] = parseInt(selectionParameters[i]);
+	}
+	width = selectionParameters[0];
+	height = selectionParameters[1];
+	channel = selectionParameters[2];
+	x = selectionParameters[3];
+	y = selectionParameters[4];
+	makeRectangle(x, y, width, height);
+	Stack.setChannel(channel);
+}
+
+/*
+ * Stores rectangular selection in file.
+ */
+function saveSelectionToFile(file) {
+	getSelectionBounds(x, y, width, height);
+	Stack.getPosition(channel, VOID, VOID);
+	
+	// Save to file
+	File.saveString("&width,&height,&channel,&x,&y", file);
+}
