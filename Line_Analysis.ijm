@@ -25,7 +25,7 @@
 // TODO Remove global variables where possible
 
 var VOID = 0;
-var row = 0;	
+var row = 0;
 var ROInum = 0;
 var chanum = 0;
 var endimage = 0;
@@ -33,12 +33,10 @@ var recruitmentTime = 0;
 var widthline = 0;
 var heightline = 0;
 var filename = "";
-var path ="";
+var path = "";
 offset = 14;
 
 macro "Line analysis staining" {
-
-	
 	// Reset everything
 	run("Close All");	
 	run("Clear Results");
@@ -53,12 +51,12 @@ macro "Line analysis staining" {
 	Dialog.show();
 
 	// Get user input
-	batch = Dialog.getCheckbox(); 
+	batch = Dialog.getCheckbox();
 	method = Dialog.getChoice();
-	multi_ch = Dialog.getCheckbox(); 
+	multi_ch = Dialog.getCheckbox();
 
 	if (multi_ch && method != "single slide")
- {
+	{
 		exit("Multichannels only supported for single slide measurements");
 	}
 
@@ -67,12 +65,10 @@ macro "Line analysis staining" {
 		// Use LSM Toolbox for opening LSM instead of Bio-Formats
 		run("Show LSMToolbox", "ext");
 		Ext.lsmOpen(file);
-	}
- else {
+	} else {
 		// Use Bio-Formats for other formats
 		run("Bio-Formats (Windowless)", "open=["+file+"]");
-		if (method != "single slide") 
-{
+		if (method != "single slide") {
 			exit("Only .lsm/nfor for time series measurements supported");
 		}
 	}	
@@ -91,7 +87,7 @@ macro "Line analysis staining" {
 		list = getFileList(path);
 		files = newArray();
 		for (i=0; i<list.length; ++i) 
-{
+		{
 //			if (startsWith(list[i], prefix) && endsWith(list[i], ".lsm")) 
 			if (startsWith(list[i], prefix)) { 
 				files = Array.concat(files, list[i]);
@@ -122,11 +118,10 @@ macro "Line analysis staining" {
 		for (i=0; i<channels; ++i) {
 			excitationWavelengths[i] = Dialog.getChoice();
 		}
-		chan_thresh = Dialog.getChoice();
- // String representation
+		chan_thresh = Dialog.getChoice(); // String representation
 
 		if (chan_thresh == "Select")
- {
+		{
 			chan_thresh = 1; // Default channel
 		} else {
 			chan_thresh = convertWavelengthToChannelNumber(chan_thresh, exicationWavelengths);
@@ -137,7 +132,7 @@ macro "Line analysis staining" {
 		chan_nums = newArray();
 		for (i=0; i<excitationWavelengths.length; ++i) { 
 			if (excitationWavelengths[i] != "Select") 
-{
+			{
 				chan_nums = Array.concat(chan_nums, i+1);
 			}
 		}
@@ -145,7 +140,7 @@ macro "Line analysis staining" {
 		// Overwrite excitationWavelenghts s.t. it only contains specified wavelengths 
 		for (i=0; i<excitationWavelengths.length; ++i) { 
 			if (excitationWavelengths[i] == "Select")
- {
+			{
 				excitationWavelengths = Array_Remove(excitationWavelengths, i);
 			}
 		}
@@ -158,8 +153,7 @@ macro "Line analysis staining" {
 
 		// Let the user validate the selection
 		waitForUser("Check line size and position! To change for the series delete line.txt");
-	}
- else {
+	} else {
 		// Let the user select a rectangle
 		waitForUser("Select the channel to measure and mark line with box then press OK!");
 
@@ -167,15 +161,13 @@ macro "Line analysis staining" {
 		saveSelectionToFile(path+"line.txt");
 	}
 
-	if (multi_ch)
- {
+	if (multi_ch) {
 		// Update chanum
 		Stack.getPosition(chanum, VOID, VOID);
 		chanum_old = chanum;
 		for(i=0; i<chanum_old-1; ++i) 
-{
-			if(!chan_sel[i])
- {
+		{
+			if(!chan_sel[i]) {
 				chanum--;
 			}
 		}
@@ -187,12 +179,10 @@ macro "Line analysis staining" {
 				chan_thresh--;
 			}
 		}
-	}
- else
- {
+	} else {
 		chan_sel = toString(chanum);
 	}
-			
+
 	if (method != "single slide") {
 		// Number of frames before bleaching
 		beforeBleachingFrames = 1;
@@ -226,18 +216,17 @@ macro "Line analysis staining" {
 				Dialog.addMessage("Approximated length of time series: &recruitmentTime &timeUnit");
 				Dialog.show();
 				
-				control = Dialog.getCheckbox(); 
+				control = Dialog.getCheckbox();
 				analysisTime = recruitmentTime;
-			}
- else { 		
+			} else {
 				control = true;
-			}			
+			}
 		} while (!control);
 	}
-	
+
 	// Create results directory
 	File.makeDirectory(path+"Results");
-	
+
 	if (batch) {
 		/*
 		 * Batch mode
@@ -247,8 +236,7 @@ macro "Line analysis staining" {
 		endimage = newArray(files.length);
 
 		// TODO Refactor similar code
-		if (method == "whole nucleus")
- {
+		if (method == "whole nucleus") {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				Ext.lsmOpen(filename);
@@ -260,8 +248,7 @@ macro "Line analysis staining" {
 			}
 		}
 
-		if (method == "line ROI")
- {
+		if (method == "line ROI") {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				Ext.lsmOpen(filename);
@@ -273,8 +260,7 @@ macro "Line analysis staining" {
 			}
 		}
 
-		if (method == "single slide")
- {
+		if (method == "single slide") {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				run("Bio-Formats (Windowless)", "open=["+filename+"]");
@@ -286,30 +272,24 @@ macro "Line analysis staining" {
 
 		run("Clear Results");
 
-		if (method != "single slide")
- {
-			for (i=files.length; i>0; i--)
- {
+		if (method != "single slide") {
+			for (i=files.length; i>0; i--) {
 				Analyse(files[i-1], recruitmentTime[i-1], endimage[i-1]);
 			}
 			saveAs("Results", path+"Results"+File.separator+prefix+"_Results.txt");
-		}
- else {
+		} else {
 			for (j=0; j<choice.length; j++) {
 				ROInum = 0;
 				row = 0;
 				run("Clear Results");
-				for (i=files.length; i>0; i--)
- {
- 
+				for (i=files.length; i>0; i--) {
 					Analyse_single(files[i-1], j+1);
 				}
-				
+
 				saveAs("Results", path+"Results"+ File.separator + prefix+"_"+choice[j]+"_Results.txt");
 			}
 		}
-	}
- else {
+	} else {
 		/* 
 		 * Non-batch mode
 		 */
@@ -318,8 +298,7 @@ macro "Line analysis staining" {
 			endimage = findTime(analysisTime, timeStamps, irradiationFrames);
 			recruitmentTime = timeStamps[endimage-1] - timeStamps[beforeBleachingFrames+irradiationFrames-1];
 
-			if (method == "whole nucleus")
- {
+			if (method == "whole nucleus") {
 				ProcessNuc(files);
 			} else { 
 				ProcessLine(files);
@@ -329,8 +308,7 @@ macro "Line analysis staining" {
 
 			Analyse(files, recruitmentTime);
 			saveAs("Results", path+"Results"+ File.separator + files +"_Results.txt");
-		}
- else {
+		} else {
 			ProcessNuc_single(files, chan_sel, chanum, chan_thresh);
 			for (j=0; j<chan_nums.length; j++) {
 				run("Clear Results");
@@ -341,25 +319,21 @@ macro "Line analysis staining" {
 				saveAs("Results", path+"Results"+ File.separator + files +"_"+choice[j]+"_Results.txt");
 			}
 		}
-	
 	}
 
-	if (batch)
- {
+	if (batch) {
 		roiManager("Save", path+"Results"+ File.separator + prefix+"_ROISet.zip");
 	} else {
 		roiManager("Save", path+"Results"+ File.separator + files+"_ROISet.zip");
 	}
 }
 
-
 /*
  * Get timestamps from metadata.
  */
 function Tstamps(fullname) {
 	stamp = split(Ext.getTStamps(fullname), ",");
-	for (i=0; i<lengthOf(stamp); i++) 
-{
+	for (i=0; i<lengthOf(stamp); i++) {
 		stamp[i] = parseFloat(stamp[i]);
 	}
 	return stamp;
@@ -413,14 +387,12 @@ function ProcessNuc(name, end_image)  {
 	ysel_temp = ysel - box_y;
 	if (xsel_temp > 0 && ysel_temp > 0) {
 		getDimensions(check_w, check_h, VOID, VOID, VOID);
-			if (xsel_temp + widthline >= check_w || ysel_temp + heightline >= check_h)
- {
+			if (xsel_temp + widthline >= check_w || ysel_temp + heightline >= check_h) {
 				makeRectangle(2, 2, widthline, heightline);
 			} else {
 				makeRectangle(xsel_temp, ysel_temp, widthline, heightline);
 			}
-	}
- else {
+	} else {
 		makeRectangle(2, 2, widthline, heightline);
 	}
 
@@ -442,7 +414,7 @@ function ProcessNuc(name, end_image)  {
 	// Threshold image
 	run("Threshold...");
 	setAutoThreshold("Huang dark");
- // default threshold
+	// default threshold
 	Stack.setChannel(chanum);
 	Stack.setFrame(end_image);
 
@@ -487,15 +459,17 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 	getDimensions(imgwidth, imgheight, VOID, VOID, VOID);
 	xsel_temp = xsel - box_x;
 	ysel_temp = ysel - box_y;
+
 	if (xsel_temp > 0 && ysel_temp > 0) {
 		getDimensions(check_w, check_h, VOID, VOID, VOID);
-			if (xsel_temp + widthline >= check_w || ysel_temp + heightline >= check_h)
+			if (xsel_temp + widthline >= check_w || ysel_temp + heightline >= check_h) {
 				makeRectangle(2, 2, widthline, heightline);
-			else
+			} else {
 				makeRectangle(xsel_temp, ysel_temp, widthline, heightline);
-	}
-	else
+			}
+	} else {
 		makeRectangle(2, 2, widthline, heightline);
+	}
 
 	Stack.setChannel(channel_number);
 	waitForUser("Move box on line!");
@@ -522,13 +496,15 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 		waitForUser("More than 1 ROI created! Remove unwanted ROI(s) and press OK!");
 		ROIafter = roiManager("count");
 	}
+
 	while (ROIafter-ROIbefore == 0) {
 		setTool("freehand");
 		waitForUser("No ROI created! Create selection by hand and press OK!");
 		run("Add to Manager");
 		ROIafter = roiManager("count");
 		setTool("rectangle");
-		}
+	}
+
 	ROIafter = roiManager("count");
 	roiManager("Select", roiManager("count")-1);
 	roiManager("Rename", "nuc_"+name);
@@ -579,8 +555,7 @@ function ProcessLine(name, end_image) {
 	makeRectangle(xpos+widthline+5, ypos, widthline, heightline);
 	waitForUser("Move box to nucleus!");
 	
-	// Add nucleus selection
- to ROI Manager
+	// Add nucleus selection to ROI Manager
 	run("Add to Manager");
 	roiManager("Select", roiManager("count")-1);
 	roiManager("Rename", "nuc_bgd_"+name);
@@ -660,8 +635,7 @@ function Analyse(name, time, end_image) {
 		updateResults();
 		row++;
 		ROInum++;
-	}
- else {
+	} else {
 		ROInum += 2;
 	}
 }
@@ -737,14 +711,13 @@ function Array_Remove(a, pos) {
 function Channel_Select(chan) {
 	channelSelected = newArray();
 	for (i=0; i<chan.length; ++i) {
-		if (chan[i] == "Select") 
-{
+		if (chan[i] == "Select") {
 			channelSelected = Array.concat(channelSelected, false);
-		} else
- {
+		} else {
 			channelSelected = Array.concat(channelSelected, true);
 		}
 	}
+
 	return channelSelected;
 }
 	
@@ -788,6 +761,9 @@ function saveSelectionToFile(file) {
 	File.saveString("&width,&height,&channel,&x,&y", file);
 }
 
+/*
+ * TODO Documentation
+ */
 function convertWavelengthToChannelNumber(wavelength, exicationWavelengths) {
 	// Convert from wavelength to channel number
 	i = 0;
