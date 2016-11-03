@@ -58,23 +58,17 @@ macro "Line analysis staining" {
 	method = Dialog.getChoice();
 	multi_ch = Dialog.getCheckbox();
 
-	if (multi_ch && method != SINGLE_SLIDE)
-	{
+	if (multi_ch && method != SINGLE_SLIDE) {
 		exit("Multichannels only supported for single slide measurements");
 	}
 
 	file = File.openDialog("Select first image");
-	if (endsWith(file, ".lsm")) {
-		// Use LSM Toolbox for opening LSM instead of Bio-Formats
-		run("Show LSMToolbox", "ext");
-		Ext.lsmOpen(file);
-	} else {
-		// Use Bio-Formats for other formats
-		run("Bio-Formats (Windowless)", "open=["+file+"]");
-		if (method != SINGLE_SLIDE) {
-			exit("Only .lsm/nfor for time series measurements supported");
-		}
-	}	
+	// Use Bio-Formats for other formats
+	open(file);
+	if (method != SINGLE_SLIDE) {
+		exit("Only .lsm/nfor for time series measurements supported");
+	}
+
 	files = getTitle();
 //	prefix=substring(files, 0, lengthOf(files)-offset);
 	path = getDirectory("image") + File.separator;
@@ -126,7 +120,7 @@ macro "Line analysis staining" {
 		if (chan_thresh == "Select") {
 			chan_thresh = 1; // Default channel
 		} else {
-			chan_thresh = convertWavelengthToChannelNumber(chan_thresh, exicationWavelengths);
+			chan_thresh = convertWavelengthToChannelNumber(chan_thresh, excitationWavelengths);
 		}
 
 		// Create an array of channels for which wavelengths have been selected
@@ -142,6 +136,7 @@ macro "Line analysis staining" {
 		for (i=0; i<excitationWavelengths.length; ++i) { 
 			if (excitationWavelengths[i] == "Select") {
 				excitationWavelengths = Array_Remove(excitationWavelengths, i);
+				i = i-1; // Previous line removes element, fix index-shift
 			}
 		}
 	}
@@ -149,16 +144,24 @@ macro "Line analysis staining" {
 	// Read line for evaluation from file
 	if (File.exists(path + "line.txt")) {
 		// Load selection from file
-		makeSelectionFromFile(path+"line.txt");
+		lineSelection = makeSelectionFromFile(path+"line.txt");
+		xsel = lineSelection[0]; // FIXME
+		ysel = lineSelection[1]; // FIXME
+		widthline = lineSelection[2]; // FIXME
+		heightline = lineSelection[3]; // FIXME
 
 		// Let the user validate the selection
 		waitForUser("Check line size and position! To change for the series delete line.txt");
 	} else {
 		// Let the user select a rectangle
 		waitForUser("Select the channel to measure and mark line with box then press OK!");
-
+		
 		// Save selection to file
-		saveSelectionToFile(path+"line.txt");
+		lineSelection = saveSelectionToFile(path+"line.txt");
+		xsel = lineSelection[0]; // FIXME
+		ysel = lineSelection[1]; // FIXME
+		widthline = lineSelection[2]; // FIXME
+		heightline = lineSelection[3]; // FIXME
 	}
 
 	if (multi_ch) {
@@ -239,7 +242,7 @@ macro "Line analysis staining" {
 		if (method == WHOLE_NUCLEUS) {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
-				Ext.lsmOpen(filename);
+				Ext.lsmOpen(filename); // TODO
 				timeStamps = Tstamps(filename);
 				endimage[i-1] = findTime(analysisTime, timeStamps, irradiationFrames);
 				recruitmentTime[i-1] = timeStamps[endimage[i-1]-1] - timeStamps[beforeBleachingFrames+irradiationFrames-1];
@@ -251,7 +254,7 @@ macro "Line analysis staining" {
 		if (method == LINE_ROI) {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
-				Ext.lsmOpen(filename);
+				Ext.lsmOpen(filename); // TODO
 				timeStamps = Tstamps(filename);
 				endimage[i-1] = findTime(analysisTime, timeStamps, irradiationFrames);
 				recruitmentTime[i-1] = timeStamps[endimage[i-1]-1] - timeStamps[beforeBleachingFrames+irradiationFrames-1];
@@ -263,7 +266,7 @@ macro "Line analysis staining" {
 		if (method == SINGLE_SLIDE) {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
-				run("Bio-Formats (Windowless)", "open=["+filename+"]");
+				open(filename);
 				Stack.setChannel(chanum_old);
 				
 				ProcessNuc_single(files[i-1], chan_sel, chanum, chan_thresh);
@@ -287,7 +290,7 @@ macro "Line analysis staining" {
 					Analyse_single(files[i-1], j+1);
 				}
 
-				saveAs("Results", path+"Results"+ File.separator + prefix+"_"+choice[j]+"_Results.txt");
+				saveAs("Results", path+"Results"+ File.separator + prefix+"_"+excitationWavelengths[j]+"_Results.txt");
 			}
 		}
 	} else {
@@ -317,7 +320,7 @@ macro "Line analysis staining" {
 				row = 0;
 				Analyse_single(files, j+1);
 
-				saveAs("Results", path+"Results"+ File.separator + files +"_"+choice[j]+"_Results.txt");
+				saveAs("Results", path+"Results"+ File.separator + files +"_"+excitationWavelengths[j]+"_Results.txt");
 			}
 		}
 	}
@@ -446,15 +449,24 @@ function ProcessNuc(name, end_image)  {
  * TODO Documentation
  */
 function ProcessNuc_single(name, chan_selection, channel_number, thresh_number)  {
+	// Auto-correct contrast
 	run("Enhance Contrast", "saturated=0.35");
+
+	// Let the user decide on the crop region
 	waitForUser("Mark cell with box and press OK!");
 	getSelectionBounds(box_x, box_y, VOID, VOID);
 	run("Duplicate...", "title="+name+"_crop duplicate channels=1-"+channels);
+	
+	// Remove unused channels
 	Slice_Remove(chan_selection);
 	getDimensions(VOID, VOID, channels, VOID, VOID);
 	run("Duplicate...", "title=blur duplicate channels=1-"+channels);
+
+	// Close input image
 	selectWindow(name);
  	close();
+
+	// Save crop image
 	selectWindow(name+"_crop");
 	save(path+"Results"+ File.separator + name+".tiff");
 	getDimensions(imgwidth, imgheight, VOID, VOID, VOID);
@@ -491,7 +503,8 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 	run("Threshold...");
 	
 	waitForUser("Adjust threshold and press OK!");
-	run("Analyze Particles...", "size=100-Infinity circularity=0.00-1.00 show=Nothing exclude include add slice");	
+	run("Create Selection");
+	roiManager("Add");	
 	ROIafter = roiManager("count");
 	while (ROIafter-ROIbefore > 1) {
 		waitForUser("More than 1 ROI created! Remove unwanted ROI(s) and press OK!");
@@ -700,6 +713,7 @@ function Analyse_single(name, channel_number) {
  */
 function Array_Remove(a, pos) {
 	a1 = Array.slice(a, 0, pos);
+	
 	a2 = Array.slice(a, pos+1);
 	a = Array.concat(a1, a2);
 	return a;
@@ -738,7 +752,7 @@ function Slice_Remove(chan) {
  */
 function makeSelectionFromFile(file) {
 	selectionParameters = File.openAsString(file);
-	selectionParameters = split(selection, ",");
+	selectionParameters = split(selectionParameters, ",");
 	for (i=0; i<selectionParameters.length; ++i) { 
 		selectionParameters[i] = parseInt(selectionParameters[i]);
 	}
@@ -749,6 +763,9 @@ function makeSelectionFromFile(file) {
 	y = selectionParameters[4];
 	makeRectangle(x, y, width, height);
 	Stack.setChannel(channel);
+
+	// FIXME
+	return newArray(x, y, width, height);
 }
 
 /*
@@ -760,6 +777,9 @@ function saveSelectionToFile(file) {
 	
 	// Save to file
 	File.saveString("&width,&height,&channel,&x,&y", file);
+
+	// FIXME
+	return newArray(x, y, width, height);
 }
 
 /*
@@ -772,4 +792,13 @@ function convertWavelengthToChannelNumber(wavelength, exicationWavelengths) {
 		i++;
 	}
 	return i+1; // index shift
+}
+
+/*
+ * TODO Documentation
+ */
+function printArray(a) {
+	for (i=0; i<a.length; ++i) {
+		print(a[i]);
+	}
 }
