@@ -35,6 +35,9 @@ var heightline = 0;
 var filename = "";
 var path = "";
 offset = 14;
+var LINE_ROI = "line ROI";
+var WHOLE_NUCLEUS = "whole nucleus";
+var SINGLE_SLIDE = "single slide";
 
 macro "Line analysis staining" {
 	// Reset everything
@@ -45,7 +48,7 @@ macro "Line analysis staining" {
 	// Create and show dialog
 	Dialog.create("Method selection");
 	Dialog.addCheckbox("Batch mode", true);
-	methods = newArray("line ROI", "whole nucleus", "single slide");
+	methods = newArray(LINE_ROI, WHOLE_NUCLEUS, SINGLE_SLIDE);
 	Dialog.addChoice("Background selection method:", methods, methods[1]);
 	Dialog.addCheckbox("Multichannel measurement", false);
 	Dialog.show();
@@ -55,7 +58,7 @@ macro "Line analysis staining" {
 	method = Dialog.getChoice();
 	multi_ch = Dialog.getCheckbox();
 
-	if (multi_ch && method != "single slide")
+	if (multi_ch && method != SINGLE_SLIDE)
 	{
 		exit("Multichannels only supported for single slide measurements");
 	}
@@ -68,7 +71,7 @@ macro "Line analysis staining" {
 	} else {
 		// Use Bio-Formats for other formats
 		run("Bio-Formats (Windowless)", "open=["+file+"]");
-		if (method != "single slide") {
+		if (method != SINGLE_SLIDE) {
 			exit("Only .lsm/nfor for time series measurements supported");
 		}
 	}	
@@ -120,8 +123,7 @@ macro "Line analysis staining" {
 		}
 		chan_thresh = Dialog.getChoice(); // String representation
 
-		if (chan_thresh == "Select")
-		{
+		if (chan_thresh == "Select") {
 			chan_thresh = 1; // Default channel
 		} else {
 			chan_thresh = convertWavelengthToChannelNumber(chan_thresh, exicationWavelengths);
@@ -131,21 +133,19 @@ macro "Line analysis staining" {
 		chan_sel = Channel_Select(excitationWavelengths);
 		chan_nums = newArray();
 		for (i=0; i<excitationWavelengths.length; ++i) { 
-			if (excitationWavelengths[i] != "Select") 
-			{
+			if (excitationWavelengths[i] != "Select") {
 				chan_nums = Array.concat(chan_nums, i+1);
 			}
 		}
 
 		// Overwrite excitationWavelenghts s.t. it only contains specified wavelengths 
 		for (i=0; i<excitationWavelengths.length; ++i) { 
-			if (excitationWavelengths[i] == "Select")
-			{
+			if (excitationWavelengths[i] == "Select") {
 				excitationWavelengths = Array_Remove(excitationWavelengths, i);
 			}
 		}
 	}
-	
+
 	// Read line for evaluation from file
 	if (File.exists(path + "line.txt")) {
 		// Load selection from file
@@ -183,7 +183,7 @@ macro "Line analysis staining" {
 		chan_sel = toString(chanum);
 	}
 
-	if (method != "single slide") {
+	if (method != SINGLE_SLIDE) {
 		// Number of frames before bleaching
 		beforeBleachingFrames = 1;
 		// Number of frames that are not analysed because the images are basically white
@@ -236,7 +236,7 @@ macro "Line analysis staining" {
 		endimage = newArray(files.length);
 
 		// TODO Refactor similar code
-		if (method == "whole nucleus") {
+		if (method == WHOLE_NUCLEUS) {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				Ext.lsmOpen(filename);
@@ -248,7 +248,7 @@ macro "Line analysis staining" {
 			}
 		}
 
-		if (method == "line ROI") {
+		if (method == LINE_ROI) {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				Ext.lsmOpen(filename);
@@ -260,7 +260,7 @@ macro "Line analysis staining" {
 			}
 		}
 
-		if (method == "single slide") {
+		if (method == SINGLE_SLIDE) {
 			for (i=files.length; i>0; i--) {
 				filename = path+files[i-1];
 				run("Bio-Formats (Windowless)", "open=["+filename+"]");
@@ -270,9 +270,10 @@ macro "Line analysis staining" {
 			}
 		}
 
+		// Clear the Results Table
 		run("Clear Results");
 
-		if (method != "single slide") {
+		if (method != SINGLE_SLIDE) {
 			for (i=files.length; i>0; i--) {
 				Analyse(files[i-1], recruitmentTime[i-1], endimage[i-1]);
 			}
@@ -293,12 +294,12 @@ macro "Line analysis staining" {
 		/* 
 		 * Non-batch mode
 		 */
-		if (method != "single slide") {
+		if (method != SINGLE_SLIDE) {
 			// TODO ???
 			endimage = findTime(analysisTime, timeStamps, irradiationFrames);
 			recruitmentTime = timeStamps[endimage-1] - timeStamps[beforeBleachingFrames+irradiationFrames-1];
 
-			if (method == "whole nucleus") {
+			if (method == WHOLE_NUCLEUS) {
 				ProcessNuc(files);
 			} else { 
 				ProcessLine(files);
