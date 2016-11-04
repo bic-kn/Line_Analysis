@@ -78,7 +78,7 @@ macro "Line analysis staining" {
 		list = getFileList(path);
 		files = newArray();
 		for (i=0; i<list.length; ++i) {
-			if (startsWith(list[i], prefix)) { 
+			if (startsWith(list[i], prefix)) {
 				files = Array.concat(files, list[i]);
 			}
 		}
@@ -86,17 +86,17 @@ macro "Line analysis staining" {
 
 		showMessage("Image files detected!", files.length + " files will be analyzed!");
 	}
-	
+
 	// Get user input on multi-channel measurements
 	if (multi_ch) {
 		excit = newArray("405 nm", "458 nm", "488 nm", "514 nm", "543 nm", "633 nm", "TL", "Select");
 
 		// Get number of channels
 		getDimensions(VOID, VOID, channels, VOID, VOID);
-	
+
 		// Create dialog
 		Dialog.create("Wavelength selection");
-		for (i=0; i<channels; ++i) { 
+		for (i=0; i<channels; ++i) {
 			Dialog.addChoice("Excitation wavelength of Channel "+ i+1 +":", excit, "Select");
 		}
 		Dialog.addChoice("Do thresholding in Channel:", excit, "633 nm");
@@ -118,14 +118,14 @@ macro "Line analysis staining" {
 		// Create an array of channel numbers for which wavelengths have been selected
 		chan_sel = Channel_Select(excitationWavelengths);
 		chan_nums = newArray();
-		for (i=0; i<excitationWavelengths.length; ++i) { 
+		for (i=0; i<excitationWavelengths.length; ++i) {
 			if (excitationWavelengths[i] != "Select") {
 				chan_nums = Array.concat(chan_nums, i+1);
 			}
 		}
 
-		// Overwrite excitationWavelenghts s.t. it only contains specified wavelengths 
-		for (i=0; i<excitationWavelengths.length; ++i) { 
+		// Overwrite excitationWavelenghts s.t. it only contains specified wavelengths
+		for (i=0; i<excitationWavelengths.length; ++i) {
 			if (excitationWavelengths[i] == "Select") {
 				excitationWavelengths = Array_Remove(excitationWavelengths, i);
 				i = i-1; // Previous line removes element, fix index-shift
@@ -168,9 +168,9 @@ macro "Line analysis staining" {
 				chan_line--;
 			}
 		}
-		
+
 		// Update chan_thresh since channels might have been removed
-		// in the selection dialog in the meantime.
+		// in the selection dialog in the meantime
 		thres_old = chan_thresh;
 		for (i=0; i<thres_old-1; ++i) {
 			if (!chan_sel[i]) {
@@ -195,25 +195,25 @@ macro "Line analysis staining" {
 			Dialog.create("Parameter setup");
 			Dialog.addNumber("Number of not irradiated images", beforeBleachingFrames);
 			Dialog.addNumber("Number of irradiation images", irradiationFrames);
-			Dialog.addNumber("Recruitment time after irradiation [in &timeUnit]", recruitmentTime);	
+			Dialog.addNumber("Recruitment time after irradiation [in &timeUnit]", recruitmentTime);
 			Dialog.show();
-			
+
 			beforeBleachingFrames = Dialog.getNumber();
 			irradiationFrames = Dialog.getNumber();
 			analysisTime = Dialog.getNumber();
 
 			// Get timestamps from file
 			timeStamps = Tstamps(file);
-			
+
 			// Check if experiment is long enough to cover the recruitment
 			if (timeStamps[frames-1] - timeStamps[beforeBleachingFrames+irradiationFrames-1] < analysisTime) {
 				recruitmentTime = timeStamps[frames-1] - timeStamps[beforeBleachingFrames+irradiationFrames-1];
-				
+
 				Dialog.create("ERROR");
 				Dialog.addCheckbox("Time series is too short for selected recruitment time!\n Continue anyway?", false);
 				Dialog.addMessage("Approximated length of time series: &recruitmentTime &timeUnit");
 				Dialog.show();
-				
+
 				control = Dialog.getCheckbox();
 				analysisTime = recruitmentTime;
 			} else {
@@ -238,7 +238,7 @@ macro "Line analysis staining" {
 			open(filename); // uses Bio-Formats if necessary
 
 			if (method == SINGLE_SLIDE) {
-				Stack.setChannel(chan_line);		
+				Stack.setChannel(chan_line);
 				ProcessNuc_single(files[i-1], chan_sel, chan_line, chan_thresh);
 			} else {
 				timeStamps = Tstamps(filename);
@@ -247,10 +247,12 @@ macro "Line analysis staining" {
 				if (method == WHOLE_NUCLEUS) {
 					ProcessNuc(files[i-1], endimage[i-1]);
 				}
-		
+
 				if (method == LINE_ROI) {
 					ProcessLine(files[i-1], endimage[i-1]);
 				}
+
+				Analyse(files[i-1], recruitmentTime[i-1], endimage[i-1]);
 			}
 		}
 
@@ -258,9 +260,6 @@ macro "Line analysis staining" {
 		run("Clear Results");
 
 		if (method != SINGLE_SLIDE) {
-			for (i=files.length; i>0; i--) {
-				Analyse(files[i-1], recruitmentTime[i-1], endimage[i-1]);
-			}
 			saveAs("Results", path+"Results"+File.separator+prefix+"_Results.txt");
 		} else {
 			for (j=0; j<excitationWavelengths.length; j++) {
@@ -322,7 +321,7 @@ macro "Line analysis staining" {
  */
 function Tstamps(fullname) {
 	Ext.setId(fullname);
-	Ext.getSizeT(sizeT)
+	Ext.getSizeT(sizeT);
 	Ext.getSizeZ(sizeZ);
 	Ext.getSizeC(sizeC);
 
@@ -350,29 +349,28 @@ function findTime(analysisTime, timeStamps, laserimg) {
 	ranks = Array.rankPositions(tempstamp);
 
 	return ranks[0] + 1;
-		
 }
 
 /*
  * TODO Documentation
  */
-function ProcessNuc(name, end_image)  {
+function ProcessNuc(name, end_image) {
 	run("Enhance Contrast", "saturated=0.35");
-	
+
 	waitForUser("Mark cell with box and press OK!");
 
 	// Crop active image
 	getSelectionBounds(box_x, box_y, VOID, VOID);
 	run("Duplicate...", "title="+name+"_crop duplicate channels="+chan_line+" frames=1-"+frames);
-	
+
 	// Create duplicate for blurring
 	run("Duplicate...", "title=blur duplicate channels="+chan_line+" frames=1-"+frames);
 
 	// Close original image
 	selectWindow(name);
- 	close();
+	close();
 
- 	// Save cropped image to results folder
+	// Save cropped image to results folder
 	selectWindow(name+"_crop");
 	save(path+"Results"+File.separator+name+".tiff");
 
@@ -397,16 +395,16 @@ function ProcessNuc(name, end_image)  {
 
 	// Add to ROI manager
 	run("Add to Manager");
-	
+
 	Overlay.hide();
 	roiManager("Select", roiManager("count")-1);
 	roiManager("Rename", "line_"+name);
 	ROIbefore = roiManager("count");
-	
+
 	// Blur image
 	selectWindow("blur");
 	run("Gaussian Blur...", "sigma=3 stack");
-	
+
 	// Threshold image
 	run("Threshold...");
 	setAutoThreshold("Huang dark");
@@ -416,7 +414,7 @@ function ProcessNuc(name, end_image)  {
 
 	// Ask user for validation
 	waitForUser("Adjust threshold and press OK!");
-	
+
 	run("Analyze Particles...", "size=100-Infinity circularity=0.00-1.00 show=Nothing exclude include add slice");	
 	ROIafter = roiManager("count");
 	while (ROIafter-ROIbefore > 1) {
@@ -440,7 +438,7 @@ function ProcessNuc(name, end_image)  {
 /*
  * TODO Documentation
  */
-function ProcessNuc_single(name, chan_selection, channel_number, thresh_number)  {
+function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) {
 	// Auto-correct contrast
 	run("Enhance Contrast", "saturated=0.35");
 
@@ -448,7 +446,7 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 	waitForUser("Mark cell with box and press OK!");
 	getSelectionBounds(box_x, box_y, VOID, VOID);
 	run("Duplicate...", "title="+name+"_crop duplicate channels=1-"+channels);
-	
+
 	// Remove unused channels
 	Slice_Remove(chan_selection);
 	getDimensions(VOID, VOID, channels, VOID, VOID);
@@ -456,7 +454,7 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 
 	// Close input image
 	selectWindow(name);
- 	close();
+	close();
 
 	// Save crop image
 	selectWindow(name+"_crop");
@@ -467,11 +465,11 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 
 	if (xsel_temp > 0 && ysel_temp > 0) {
 		getDimensions(check_w, check_h, VOID, VOID, VOID);
-			if (xsel_temp + widthline >= check_w || ysel_temp + heightline >= check_h) {
-				makeRectangle(2, 2, widthline, heightline);
-			} else {
-				makeRectangle(xsel_temp, ysel_temp, widthline, heightline);
-			}
+		if (xsel_temp + widthline >= check_w || ysel_temp + heightline >= check_h) {
+			makeRectangle(2, 2, widthline, heightline);
+		} else {
+			makeRectangle(xsel_temp, ysel_temp, widthline, heightline);
+		}
 	} else {
 		makeRectangle(2, 2, widthline, heightline);
 	}
@@ -497,7 +495,7 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 	Stack.setChannel(thresh_number);
 	setAutoThreshold("Huang dark");
 	run("Threshold...");
-	
+
 	waitForUser("Adjust threshold and press OK!");
 
 	run("Analyze Particles...", "size=100-Infinity circularity=0.00-1.00 show=Nothing exclude include add slice");
@@ -529,25 +527,24 @@ function ProcessNuc_single(name, chan_selection, channel_number, thresh_number) 
 	close();
 }
 
-
 /*
  * TODO Documentation
  */
 function ProcessLine(name, end_image) {
 	// Enhance contrast
 	run("Enhance Contrast", "saturated=0.35");
-	
+
 	// Let the user select the cell
 	waitForUser("Mark cell with box and press OK!");
 
 	// Crop active image
 	run("Duplicate...", "title="+name+"_crop duplicate channels="+chan_line+" frames=1-"+frames);
-	
+
 	// Close original image
 	selectWindow(name);
- 	close();
+	close();
 
- 	// Save cropped image to results folder
+	// Save cropped image to results folder
 	selectWindow(name+"_crop");
 	save(path+"Results"+ File.separator + name+".tiff");
 
@@ -560,12 +557,12 @@ function ProcessLine(name, end_image) {
 	run("Add to Manager");
 	roiManager("Select", roiManager("count")-1);
 	roiManager("Rename", "line_"+name);
-	
+
 	// Propose selection for nucleus
 	getSelectionBounds(xpos, ypos, widthline, heightline);
 	makeRectangle(xpos+widthline+5, ypos, widthline, heightline);
 	waitForUser("Move box to nucleus!");
-	
+
 	// Add nucleus selection to ROI Manager
 	run("Add to Manager");
 	roiManager("Select", roiManager("count")-1);
@@ -579,7 +576,7 @@ function ProcessLine(name, end_image) {
 function Analyse(name, time, end_image) {
 	selectWindow(name+"_crop");
 	Stack.setFrame(end_image);
-	
+
 	roiManager("Select", ROInum);
 	Stack.setFrame(end_image);
 	getStatistics(linearea, linemean, VOID, max);
@@ -596,7 +593,7 @@ function Analyse(name, time, end_image) {
 		setResult("Label", row, name);
 		setResult("Slide #", row, end_image);
 		setResult("Recruit. Time", row, time);
-		setResult("Line area", row, linearea);	
+		setResult("Line area", row, linearea);
 		setResult("Line mean ", row, linemean);
 		ROInum++;
 
@@ -606,48 +603,46 @@ function Analyse(name, time, end_image) {
 		getStatistics(nucarea, nucmean);
 		setResult("Nucleus area", row, nucarea);
 		setResult("Nucleus mean ", row, nucmean);
-		
+
 		getSelectionBounds(nuc_x, nuc_y, VOID, VOID);
 
-		
 		Overlay.hide;
 		roiManager("show none");
 		waitForUser("Select background!");
 		run("Add to Manager");
 		roiManager("Select", roiManager("count")-1);
-		roiManager("Rename", "bgd_"+name);		
-		
-		
+		roiManager("Rename", "bgd_"+name);
+
 		getStatistics(VOID, bgd);
-		
+
 		roiManager("Select", ROInum);
 		Stack.setFrame(pb);
-		waitForUser("Adjust nucleus location!");	
+		waitForUser("Adjust nucleus location!");
 		run("Add to Manager");
 		roiManager("Select", roiManager("count")-1);
 		roiManager("Rename", "nuc_preirr_"+name);
-		
+
 		getSelectionBounds(prenuc_x, prenuc_y, VOID, VOID);
 		getStatistics(VOID, prenuc);
 		setResult("Nuc. Preirr. mean ", row, prenuc);
-		
+
 		makeRectangle(prenuc_x - nuc_x + line_x, prenuc_y - nuc_y + line_y, widthline, heightline);
 		run("Add to Manager");
-		
+
 		roiManager("Select", roiManager("count")-1);
 		roiManager("Rename", "line_preirr_"+name);
-		
+
 		getStatistics(VOID, preline);
 		setResult("Line Preirr. mean", row, preline);
 		setResult("Background", row, bgd);
-		
+
 		percent_nuc = (nucmean-bgd) / (prenuc-bgd) * 100;
 		subtr_line = linemean  * (prenuc-bgd) / (nucmean-bgd) - preline;
 		corr_line = 100 * ((linemean-bgd) * (prenuc-bgd)) / ((preline-bgd) * (nucmean-bgd));
 		setResult("Nucleus [Percent of preirr. nucleus]", row, percent_nuc);
 		setResult("Line [Percent of preirr. line]", row, corr_line);
 		setResult("Line [Int. - preirr. int.]", row, subtr_line);
-		
+
 		updateResults();
 		row++;
 		ROInum++;
@@ -669,7 +664,7 @@ function Analyse_single(name, channel_number) {
 		Stack.setChannel(channel_number);
 		getStatistics(linearea, linemean, VOID, max);
 		setResult("Label", row, name);
-		setResult("Line area", row, linearea);	
+		setResult("Line area", row, linearea);
 		setResult("Line mean ", row, linemean);
 		ROInum++;
 		// Get info about background
@@ -700,25 +695,24 @@ function Analyse_single(name, channel_number) {
 		line_corr = linemean  - bgd;
 		nucOnly_corr = nucOnlymean - bgd;
 		setResult("Nucleus [Nucleus mean corr.]", row, nuc_corr);
-		setResult("Nucleus w/o line [Nucleus mean corr.]", row, nucOnly_corr);		
+		setResult("Nucleus w/o line [Nucleus mean corr.]", row, nucOnly_corr);
 		setResult("Line [Line mean corr.]", row, line_corr);
 		setResult("Line / Nucleus w/o Line]", row, line_corr/nucOnly_corr);
 		updateResults();
-		
+
 		row++;
 		ROInum++;
 }
 
 /*
- * Remove element from array.
+ * Remove an element from array.
  */
 function Array_Remove(a, pos) {
-	a1 = Array.slice(a, 0, pos);	
+	a1 = Array.slice(a, 0, pos);
 	a2 = Array.slice(a, pos+1);
 	a = Array.concat(a1, a2);
 	return a;
 }
-								
 
 /*
  * Converts from a string array to a boolean area by checking the elements for equality to "Select"
@@ -735,7 +729,7 @@ function Channel_Select(chan) {
 
 	return channelSelected;
 }
-	
+
 /*
  * Remove slice from stack.
  */
@@ -754,7 +748,7 @@ function Slice_Remove(chan) {
 function makeSelectionFromFile(file) {
 	selectionParameters = File.openAsString(file);
 	selectionParameters = split(selectionParameters, ",");
-	for (i=0; i<selectionParameters.length; ++i) { 
+	for (i=0; i<selectionParameters.length; ++i) {
 		selectionParameters[i] = parseInt(selectionParameters[i]);
 	}
 	width = selectionParameters[0];
@@ -775,7 +769,7 @@ function makeSelectionFromFile(file) {
 function saveSelectionToFile(file) {
 	getSelectionBounds(x, y, width, height);
 	Stack.getPosition(channel, VOID, VOID);
-	
+
 	// Save to file
 	File.saveString(""+width+","+height+","+channel+","+x+","+y, file);
 
@@ -784,19 +778,19 @@ function saveSelectionToFile(file) {
 }
 
 /*
- * TODO Documentation
+ * Convert from String representation of wavelength to channel number.
  */
 function convertWavelengthToChannelNumber(wavelength, exicationWavelengths) {
-	// Convert from wavelength to channel number
 	i = 0;
 	while (wavelength != excitationWavelengths[i] && i < excitationWavelengths.length) {
 		i++;
 	}
+
 	return i+1; // index shift
 }
 
 /*
- * TODO Documentation
+ * Print all elements of an array.
  */
 function printArray(a) {
 	for (i=0; i<a.length; ++i) {
