@@ -37,6 +37,7 @@ offset = 14;
 var LINE_ROI = "line ROI";
 var WHOLE_NUCLEUS = "whole nucleus";
 var SINGLE_SLIDE = "single slide";
+var BIC_PREFIX = "bic-kn.lineAnalysis.";
 
 macro "Line analysis staining" {
 	// Reset everything
@@ -47,16 +48,19 @@ macro "Line analysis staining" {
 	
 	// Create and show dialog
 	Dialog.create("Method selection");
-	Dialog.addCheckbox("Batch mode", true);
+	Dialog.addCheckbox("Batch mode", call("ij.Prefs.get", BIC_PREFIX+"batch", true));
 	methods = newArray(LINE_ROI, WHOLE_NUCLEUS, SINGLE_SLIDE);
-	Dialog.addChoice("Background selection method:", methods, methods[1]);
-	Dialog.addCheckbox("Multichannel measurement", false);
+	Dialog.addChoice("Background selection method:", methods, call("ij.Prefs.get", BIC_PREFIX+"method", methods[1]));
+	Dialog.addCheckbox("Multichannel measurement", call("ij.Prefs.get", BIC_PREFIX+"multi_ch", false));
 	Dialog.show();
 
 	// Get user input
 	batch = Dialog.getCheckbox();
+	saveSetting("batch", batch);
 	method = Dialog.getChoice();
+	saveSetting("method", method);
 	multi_ch = Dialog.getCheckbox();
+	saveSetting("multi_ch", multi_ch);
 
 	if (multi_ch && method != SINGLE_SLIDE) {
 		exit("Multichannels only supported for single slide measurements");
@@ -71,9 +75,10 @@ macro "Line analysis staining" {
 	if (batch) {
 		// Dialog for prefix selection
 		Dialog.create("Select the prefix");
-		Dialog.addString("Prefix used for image selection:", files, lengthOf(files));
+		Dialog.addString("Prefix used for image selection:", call("ij.Prefs.get", BIC_PREFIX+"prefix", files), lengthOf(files));
 		Dialog.show();
 		prefix = Dialog.getString();
+		saveSetting("prefix", prefix);
 
 		// Filter file list according to prefix
 		list = getFileList(path);
@@ -98,17 +103,20 @@ macro "Line analysis staining" {
 		// Create dialog
 		Dialog.create("Wavelength selection");
 		for (i=0; i<channels; ++i) {
-			Dialog.addChoice("Excitation wavelength of Channel "+ i+1 +":", excit, "Select");
+			// TODO Save settings
+			Dialog.addChoice("Excitation wavelength of Channel "+ i+1 +":", excit, call("ij.Prefs.get", BIC_PREFIX+"excitationWavelength."+i, "Select"));
 		}
-		Dialog.addChoice("Do thresholding in Channel:", excit, "633 nm");
+		Dialog.addChoice("Do thresholding in Channel:", excit, call("ij.Prefs.get", BIC_PREFIX+"chan_thresh", "633 nm"));
 		Dialog.show();
 
 		// Get input from dialog
 		excitationWavelengths = newArray(channels);
 		for (i=0; i<channels; ++i) {
 			excitationWavelengths[i] = Dialog.getChoice();
+			saveSetting("excitationWavelength."+i, excitationWavelengths[i]);
 		}
 		chan_thresh = Dialog.getChoice(); // String representation
+		saveSetting("chan_thresh", chan_thresh);
 
 		if (chan_thresh == "Select") {
 			chan_thresh = 1; // Default channel
@@ -194,14 +202,17 @@ macro "Line analysis staining" {
 		// Repeatedly ask the user for input and verify the input. If the inputs are good, continue.
 		do {
 			Dialog.create("Parameter setup");
-			Dialog.addNumber("Number of not irradiated images", beforeBleachingFrames);
-			Dialog.addNumber("Number of irradiation images", irradiationFrames);
-			Dialog.addNumber("Recruitment time after irradiation [in &timeUnit]", recruitmentTime);
+			Dialog.addNumber("Number of not irradiated images", call("ij.Prefs.get", BIC_PREFIX+"beforeBleachingFrames", beforeBleachingFrames));
+			Dialog.addNumber("Number of irradiation images", call("ij.Prefs.get", BIC_PREFIX+"irradiationFrames", irradiationFrames));
+			Dialog.addNumber("Recruitment time after irradiation [in &timeUnit]", call("ij.Prefs.get", BIC_PREFIX+"recruitmentTime", recruitmentTime));
 			Dialog.show();
 
 			beforeBleachingFrames = Dialog.getNumber();
+			saveSetting("beforeBleachingFrames", beforeBleachingFrames);
 			irradiationFrames = Dialog.getNumber();
+			saveSetting("irradiationFrames", irradiationFrames);
 			analysisTime = Dialog.getNumber();
+			saveSetting("analysisTime", analysisTime);
 
 			// Get timestamps from file
 			timeStamps = Tstamps(file);
@@ -803,3 +814,22 @@ function printArray(a) {
 		print(a[i]);
 	}
 }
+
+/*
+ * Saves a setting between sessions using ij.Prefs.
+ */
+function saveSetting(key, value) {
+	call("ij.Prefs.set", "bic-kn.lineAnalysis."+key, value);
+	call("ij.Prefs.savePreferences");
+}
+
+
+/*
+ * Load a setting using ij.Prefs. Returns the provided default values,
+ * if the setting could not be loaded.
+ * 
+ * DOES NOT WORK BECAUSE ij.Prefs.get IS OVERLOADED!
+ */
+//function loadSetting(key, default) {
+//	return call("ij.Prefs.get", "bic-kn.lineAnalysis."+key, default);
+//}
