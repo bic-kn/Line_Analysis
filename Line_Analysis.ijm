@@ -415,13 +415,18 @@ function ProcessNuc(name, end_image) {
 	// Ask user for validation
 	waitForUser("Adjust threshold and press OK!");
 
+	// Analyze Particles
 	run("Analyze Particles...", "size=100-Infinity circularity=0.00-1.00 show=Nothing exclude include add slice");	
+
+	// Check if Analyze Particles has produce multiple ROIs
 	ROIafter = roiManager("count");
 	while (ROIafter-ROIbefore > 1) {
 		waitForUser("More than 1 ROI created! Remove unwanted ROI(s) and press OK!");
 		ROIafter = roiManager("count");
 	}
-	while (ROIafter-ROIbefore == 0) {
+
+	// Check if Analyze Particles has not produces ROIs
+	while (ROIafter == ROIbefore) {
 		setTool("freehand");
 		waitForUser("No ROI created! Create selection by hand and press OK!");
 		run("Add to Manager");
