@@ -797,13 +797,16 @@ function saveSelectionToFile(file) {
 /*
  * Convert from String representation of wavelength to channel number.
  */
-function convertWavelengthToChannelNumber(wavelength, exicationWavelengths) {
-	i = 0;
-	while (wavelength != excitationWavelengths[i] && i < excitationWavelengths.length) {
-		i++;
+function convertWavelengthToChannelNumber(wavelength, excitationWavelengths) {
+	channelNumber = 0;
+	for (i=0; i<excitationWavelengths.length; ++i) {
+		if (excitationWavelengths[i] == wavelength) {
+			return i+i; // index shift
+		}
 	}
 
-	return i+1; // index shift
+	// TODO Should actually raise an exception in this case
+	return 0;
 }
 
 /*
