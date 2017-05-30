@@ -43,6 +43,7 @@ macro "Line analysis staining" {
 	run("Close All");	
 	run("Clear Results");
 	roiManager("Reset");
+	run("Bio-Formats Macro Extensions");
 	
 	// Create and show dialog
 	Dialog.create("Method selection");
