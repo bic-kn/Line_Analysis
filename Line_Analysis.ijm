@@ -164,6 +164,7 @@ macro "Line analysis staining" {
 		// Update chan_thresh since channels might have been removed
 		// in the selection dialog in the meantime
 		thres_old = chan_thresh;
+		print(chan_thresh);
 		for (i=0; i<thres_old-1; ++i) {
 			if (!chan_sel[i]) {
 				chan_thresh--;
@@ -784,7 +785,7 @@ function convertWavelengthToChannelNumber(wavelength, excitationWavelengths) {
 	channelNumber = 0;
 	for (i=0; i<excitationWavelengths.length; ++i) {
 		if (excitationWavelengths[i] == wavelength) {
-			return i+i; // index shift
+			return i+1; // index shift
 		}
 	}
 
